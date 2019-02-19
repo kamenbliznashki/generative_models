@@ -2,9 +2,10 @@
 
 
 
-Collection of generative method in pytorch.
+Collection of generative methods in pytorch.
 
 # Implemented models
+* [Attend, Infer, Repeat: Fast Scene Understanding with Generative Models](https://arxiv.org/abs/1603.08575v3)
 * [DRAW: A Recurrent Neural Network For Image Generation](https://arxiv.org/abs/1502.04623.pdf)
 * [Semi-Supervised Learning with Deep Generative Models](https://arxiv.org/abs/1406.5298)
 * [InfoGAN: Interpretable Representation Learning by Information Maximizing Generative Adversarial Nets](https://arxiv.org/abs/1606.03657)
@@ -15,15 +16,57 @@ The models are implemented for MNIST data; other datasets are a todo.
 
 ## Dependencies
 * python 3.6
-* pytorch 0.4
+* pytorch 0.4.1
 * numpy
 * matplotlib
 * tensorboardx
 * imageio
+* observations
 
 Data should be symlinked into a `.data` folder or specified with data_path
-flag.
+flag (or the model can download the respective dataset if not available).
 
+
+## AIR
+
+Reimplementation of the Attend, Infer, Repeat (AIR) architecture.
+https://arxiv.org/abs/1603.08575v3
+
+#### Results
+Model reconstructed data (top row is sample of original images, bottom row is AIR reconstruction; red attention window corresponds to first time step, green to second):
+
+![air_recon](images/air/image_recons_270.png)
+
+EBLO and object count accuracy after 300 epochs of training using RMSprop with the default hyperparameters discussed in the paper and linear annealing of the z_pres probability. Variance coming from the discrete z_pres is alleviated using NVIL ([Mnih & Gregor](https://arxiv.org/abs/1402.0030)) but can still be seen in the count accuracy in the first 50k training iterations.
+
+
+| Variational bound | Count accuracy |
+| --- | --- |
+| ![air_elbo](images/air/air_elbo.png) | ![air_count](images/air/air_count.png)
+
+#### Usage
+To train a model with hyperparameters of the paper:
+```
+python air.py -- train \
+              -- cuda=[# of cuda device to run on]
+```
+
+To evaluate model ELBO:
+```
+python air.py -- evaluate \
+              -- restore_file=[path to .pt checkpoint]
+              -- cuda=[# of cuda device to run on]
+```
+
+To generate data from a trained model:
+```
+python air.py -- generate \
+              -- restore_file=[path to .pt checkpoint]
+```
+
+Useful resources
+* tensorflow implementation https://github.com/akosiorek/attend_infer_repeat and by the same author Sequential AIR (a state-space model on top of AIR) (https://github.com/akosiorek/sqair/)
+* pyro implmentation and walk through http://pyro.ai/examples/air.html
 
 ## DRAW
 Reimplementation of the Deep Recurrent Attentive Writer (DRAW) network architecture. https://arxiv.org/abs/1502.04623
@@ -62,9 +105,9 @@ python draw.py -- evaluate \
 
 To generate data from a trained model:
 ```
-python ssvae.py -- generate \
-                -- restore_file=[path to .pt checkpoint]
-                -- [model parameters: read_size, write_size, lstm_size, z_size]
+python draw.py -- generate \
+               -- restore_file=[path to .pt checkpoint]
+               -- [model parameters: read_size, write_size, lstm_size, z_size]
 ```
 
 #### Useful resources
