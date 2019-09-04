@@ -5,6 +5,7 @@
 Collection of generative methods in pytorch.
 
 # Implemented models
+* [Generating Diverse High-Fidelity Images with VQ-VAE-2](https://arxiv.org/abs/1906.00446) / [Neural Discrete Representation Learning](https://arxiv.org/abs/1711.00937)
 * [Attend, Infer, Repeat: Fast Scene Understanding with Generative Models](https://arxiv.org/abs/1603.08575v3)
 * [DRAW: A Recurrent Neural Network For Image Generation](https://arxiv.org/abs/1502.04623.pdf)
 * [Semi-Supervised Learning with Deep Generative Models](https://arxiv.org/abs/1406.5298)
@@ -16,16 +17,104 @@ The models are implemented for MNIST data; other datasets are a todo.
 
 ## Dependencies
 * python 3.6
-* pytorch 0.4.1
+* pytorch 0.4.1+
 * numpy
 * matplotlib
 * tensorboardx
-* imageio
+* tqdm
+
+###### Some of the models further require
 * observations
+* imageio
 
-Data should be symlinked into a `.data` folder or specified with data_path
-flag (or the model can download the respective dataset if not available).
 
+## VQ-VAE2
+
+Implementation of Generating Diverse High-Fidelity Images with VQ-VAE-2 (https://arxiv.org/abs/1906.00446) based on Vector Quantised VAE per Neural Discrete Representation Learning (https://arxiv.org/abs/1711.00937) with PixelCNN prior on the level 1 discrete latent variables per Conditional Image Generation with PixelCNN Decoders (https://arxiv.org/abs/1606.05328) and PixelSNAIL prior on the level 2 discrete latent variables per PixelSNAIL: An Improved Autoregressive Generative Model (https://arxiv.org/abs/1712.09763).
+
+#### Results
+
+Model reconstructions on [CheXpert](https://stanfordmlgroup.github.io/competitions/chexpert/) Chest X-Ray Dataset -- CheXpert is a large public dataset for chest radiograph interpretation, consisting of 224,316 chest radiographs of 65,240 patients at 320x320 pixels for the small version of the dataset. Reconstructions and samples below are for 128x128 images using a codebook of size 8 (3 bits) which for single channel 8-bit gray scale images from CheXpert results to similar compression ratios listed in paper for 8-bit RGB images.
+
+| Original | Bottom reconstruction <br> (using top encoding) | Top reconstruction <br> (using zeroed out bottom encoding) |
+| --- | --- | --- |
+| ![chexpertoriginal](images/vqvae2/128x128_bits3_eval_reconstruction_step_87300_original.png) | ![vqvae2bottomrecon](images/vqvae2/128x128_bits3_eval_reconstruction_step_87300_bottom.png) | ![vqvae2toprecon](images/vqvae2/128x128_bits3_eval_reconstruction_step_87300_top.png) |
+
+
+##### Model samples from priors
+Both top and bottom prior models are pretty heavy to train; the samples below were trained only for 84k and 140k steps for top and bottom priors, respectively, using smaller model sizes than what was reported in the paper. The samples are class conditional along the rows for classes (atelectasis, cardiomegaly, consolidation, edema, pleural effusion, no finding) -- much more to be desired / improved with larger models and higher computational budget.
+
+Model parameters:
+* bottom prior: n_channels 128, n_res_layers 20, n_cond_stack_layers 10, drop_rate 0.1, batch size 16, lr 5e-5
+* top prior: n_channels 128, n_res_layers 5, n_out_stack_layers 10, drop_rate 0.1, batch size 128, lr 5e-5; (attention params: layers 4, heads 8, dq 16, dk 16, dv 128)
+
+![vqvae2_sampes](images/vqvae2/generation_sample_step_52440_top_b128_c128_outstack10_bottom_b16_c128_nres20_condstack10.png)
+
+#### Usage
+
+To train and evaluate/reconstruct from the VAE model with hyperparameters of the paper:
+```
+python vqvae.py --train
+                --n_embeddings [size of the latent space]
+                --n_epochs     [number of epochs to train]
+                --ema          [flag to use exponential moving average training for the embeddings]
+                --cuda         [cuda device to run on]
+
+python vqvae.py --evaluate
+                --restore_dir [path to model directory with config.json and saved checkpoint]
+                --n_samples   [number of examples from the validation set to reconstruct]
+                --cuda [cuda device to run on]
+```
+
+To train the top and bottom priors on the latent codes using 4 GPUs and Pytorch DistributedDataParallels:
+* the latent codes are extracted for the full dataset and saved as a pytorch dataset object, which is then loaded into memory for training
+* hyperparameters not shown as options below are at the defaults given by the paper (e.g. kernel size, attention parameters)
+
+```
+python -m torch.distributed.launch --nproc_per_node 4 --use_env \
+  vqvae_prior.py --vqvae_dir              [path to vae model used for encoding the dataset and decoding samples]
+                 --train
+                 --distributed            [flag to use DistributedDataParallels]
+                 --n_epochs 20
+                 --batch_size 128
+                 --lr 0.00005
+                 --which_prior top        [which prior to train]
+                 --n_cond_classes 5       [number of classes to condition on]
+                 --n_channels 128         [convolutional channels throughout the architecture]
+                 --n_res_layers 5         [number of residual layers]
+                 --n_out_stack_layers 10  [output convolutional stack (used only by top prior)]
+                 --n_cond_stack_layers 0  [input conditional stack (used only by bottom prior)]
+                 --drop_rate 0.1          [dropout rate used in the residual layers]
+
+python -m torch.distributed.launch --nproc_per_node 4 --use_env \
+  vqvae_prior.py --vqvae_dir [path_to_vae_directory]
+                 --train
+                 --distributed
+                 --n_epochs 20
+                 --batch_size 16
+                 --lr 0.00005
+                 --which_prior bottom
+                 --n_cond_classes 5
+                 --n_channels 128
+                 --n_res_layers 20
+                 --n_out_stack_layers 0
+                 --n_cond_stack_layers 10
+                 --drop_rate 0.1
+```
+
+To generate data from a trained model and priors:
+```
+
+python -m torch.distributed.launch --nproc_per_node 4 --use_env \
+  vqvae_prior.py --vqvae_dir    [path_to_vae_directory]
+                 --restore_dir  [path_to_bottom_prior_directory, path_to_top_prior_directory]
+                 --generate
+                 --distributed
+                 --n_samples    [number of samples to generate (per gpu)]
+```
+
+Useful resources
+* Official tensorflow implementation of the VQ layer and VAE model in Sonnet (https://github.com/deepmind/sonnet/blob/master/sonnet/python/modules/nets/vqvae.py and https://github.com/deepmind/sonnet/blob/master/sonnet/examples/vqvae_example.ipynb)
 
 ## AIR
 

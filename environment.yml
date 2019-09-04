@@ -1,0 +1,61 @@
+name: generative_models
+channels:
+  - pytorch
+  - defaults
+  - conda-forge
+dependencies:
+  - blas=1.0
+  - ca-certificates=2019.5.15
+  - certifi=2019.6.16
+  - cffi=1.11.5
+  - cycler=0.10.0
+  - freetype=2.9.1
+  - intel-openmp=2019.1
+  - jpeg=9b
+  - kiwisolver=1.0.1
+  - libedit=3.1.20170329
+  - libffi=3.2.1
+  - libpng=1.6.35
+  - libtiff=4.0.9
+  - matplotlib=3.0.1
+  - mkl=2018.0.3
+  - mkl_fft=1.0.6
+  - mkl_random=1.0.1
+  - ncurses=6.1
+  - ninja=1.8.2
+  - numpy=1.15.4
+  - numpy-base=1.15.4
+  - olefile=0.46
+  - openssl=1.1.1c
+  - pandas=0.24.2
+  - pillow=5.3.0
+  - pip=18.1
+  - pycparser=2.19
+  - pyparsing=2.3.0
+  - python=3.7.1
+  - python-dateutil=2.7.5
+  - pytorch=1.1.0
+  - pytz=2018.7
+  - readline=7.0
+  - scipy=1.1.0
+  - setuptools=40.6.2
+  - six=1.11.0
+  - sqlite=3.25.3
+  - tk=8.6.8
+  - torchvision=0.3.0
+  - tornado=5.1.1
+  - tqdm=4.28.1
+  - wheel=0.32.3
+  - xz=5.2.4
+  - zlib=1.2.11
+  - pip:
+    - chardet==3.0.4
+    - idna==2.7
+    - lmdb==0.96
+    - observations==0.1.4
+    - protobuf==3.6.1
+    - requests==2.20.1
+    - tensorboardx==1.4
+    - urllib3==1.24.1
+prefix: /Users/Kamen/anaconda3/envs/generative_models
+
